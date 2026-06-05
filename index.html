@@ -1,50 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Копирование конфига VPN</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Копирование конфига по клику</title>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
+        * {
+            user-select: none; /* чтобы не выделялось лишнее, но можно копировать */
+        }
+        .copy-area {
+            background: #f0f0f0;
+            border: 2px solid #0f6e2f;
+            border-radius: 12px;
             padding: 20px;
-            background: transparent;
-            margin: 0;
-        }
-        .copy-card {
-            background: #1e1e2f;
-            border-radius: 16px;
-            padding: 16px 20px;
+            margin: 20px;
+            font-family: 'Courier New', monospace;
             cursor: pointer;
-            transition: all 0.2s ease;
-            border: 1px solid #313244;
-            color: #cdd6f4;
+            transition: 0.1s;
         }
-        .copy-card:hover {
-            background: #313244;
-            transform: translateY(-2px);
+        .copy-area:active {
+            background: #e0e0e0;
+            transform: scale(0.99);
         }
         pre {
             margin: 0;
-            font-family: 'Fira Code', monospace;
-            font-size: 14px;
             white-space: pre-wrap;
-            word-wrap: break-word;
+            font-size: 16px;
         }
-        .copy-feedback {
-            text-align: right;
-            font-size: 12px;
-            margin-top: 8px;
-            color: #a6e3a1;
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: sans-serif;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
 
-<div class="copy-card" onclick="copyToClipboard()">
-    <pre># Ультимативный конфиг с кучей селекторов (Недоступные сайты, YouTube, Discord, Telegram, Cloudflare)
+<div class="copy-area" id="copyBlock">
+    <pre>
+# Ультимативный конфиг с кучей селекторов (Недоступные сайты, YouTube, Discord, Telegram, Cloudflare)
 # Разработан для использования в России с автоматическим выбором прокси и обходом блокировок.
 # Включает:
 #   - Правила для популярных сервисов (YouTube, Discord, Telegram, Cloudflare)
@@ -678,27 +681,77 @@ rules:
   - PROCESS-NAME-REGEX,(?i).*torrent.*,🔗 Торренты
 
   # 🌍 Остальные сайты
-  - MATCH,🌍 Остальные сайты</pre>
-    <div class="copy-feedback" id="feedback">✅ Скопировано!</div>
+  - MATCH,🌍 Остальные сайты
+    </pre>
 </div>
 
+<div class="toast" id="toastMsg">✅ Скопировано!</div>
+
 <script>
-    function copyToClipboard() {
-        const textToCopy = `# Фрагмент вашего конфига
+    (function() {
+        // Текст, который нужно скопировать
+        const configText = `# Ваш конфиг
 mixed-port: 7890
 allow-lan: true
 mode: rule`;
-        
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            const feedback = document.getElementById('feedback');
-            feedback.style.opacity = '1';
+
+        // Элемент, по которому кликаем
+        const copyBlock = document.getElementById('copyBlock');
+        const toast = document.getElementById('toastMsg');
+
+        function showToast(message) {
+            toast.textContent = message || '✅ Скопировано!';
+            toast.style.opacity = '1';
             setTimeout(() => {
-                feedback.style.opacity = '0';
+                toast.style.opacity = '0';
             }, 1500);
-        }).catch(err => {
-            console.error('Ошибка копирования: ', err);
+        }
+
+        // Основная функция копирования с fallback
+        function copyToClipboard(text) {
+            // Современный способ
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('✅ Конфиг скопирован!');
+                }).catch(err => {
+                    console.error('Clipboard API error:', err);
+                    fallbackCopy(text);
+                });
+            } else {
+                // Старые браузеры
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast('✅ Скопировано (старый метод)');
+                } else {
+                    showToast('❌ Не удалось скопировать');
+                }
+            } catch (err) {
+                console.error('Fallback copy error:', err);
+                showToast('❌ Ошибка копирования');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Вешаем обработчик клика
+        copyBlock.addEventListener('click', function(e) {
+            copyToClipboard(configText);
         });
-    }
+
+        // Для отладки в консоли: проверяем, что функция вообще вызывается
+        console.log('Страница загружена, кликайте по блоку');
+    })();
 </script>
 
 </body>
